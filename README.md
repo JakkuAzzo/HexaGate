@@ -1,596 +1,289 @@
 # HexaGate
-A better web browser
 
-## Name
+**Next-generation, security-first browser framework**
 
-**Name:** **HexaGate**
-**Tagline:** *One browser, every network, your agents at the wheel.*
+HexaGate unifies clearnet, Tor, I2P, GNUnet, dVPNs and emerging networks into a single routing framework. It replaces URLs with human-readable handles, isolates tasks into encrypted Spaces, and embeds agents via Hexstrike MCP for automation, OSINT, and research. With strict anti-downgrade policies, private PKI support, and integrated crypto/TradFi wallets, HexaGate becomes a trusted command surface for secure browsing and control.
 
----
+## Features
+
+### 🌐 Unified Routing Framework
+- **Multi-network support**: Route traffic through clearnet, Tor, I2P, GNUnet, or decentralized VPNs
+- **Automatic network selection**: Choose the optimal network based on security requirements
+- **Extensible architecture**: Add custom network handlers for emerging protocols
 
-## 1. Design goals
+### 📍 Human-Readable Handles
+- **Replace URLs with memorable names**: Use `my-site` instead of `https://example.com`
+- **Network-aware handles**: Prefix handles with network type (`tor:hidden-service`)
+- **Alias support**: Create multiple names for the same destination
+- **Searchable registry**: Find handles by name, description, or tags
 
-HexaGate is a:
+### 🔐 Encrypted Spaces
+- **Task isolation**: Separate browsing sessions into encrypted workspaces
+- **AES-256-GCM encryption**: Military-grade encryption for all space data
+- **Security levels**: Standard, Elevated, or Maximum security per space
+- **Password-derived keys**: Derive encryption keys from user passwords
 
-1. **Network-agnostic browser**
-   Clearnet, Tor, I2P, GNUnet, dVPNs, whatever — all just “routes” to HexaGate.
+### 🤖 Hexstrike MCP (Agent Framework)
+- **Automation agents**: Automate repetitive tasks
+- **OSINT agents**: Gather intelligence from public sources
+- **Research agents**: Assist with information gathering
+- **Permission system**: Fine-grained control over agent capabilities
+- **Task queue**: Manage and track agent tasks
 
-2. **Agent-native browser**
-   Browsing is not just “user + pages” but “user + agents + pages + tools”. Hexstrike MCP is first-class, not bolted on.
+### 🛡️ Security Policies
+- **Anti-downgrade protection**: Prevent TLS downgrade attacks
+- **Weak cipher detection**: Block connections using insecure ciphers
+- **Certificate validation**: Verify certificate chains and expiration
+- **Customizable rules**: Create policies tailored to your needs
 
-3. **Security-first browser**
-   Designed from a penetration tester / DFIR / OPSEC mindset:
+### 🔑 Private PKI Support
+- **Self-signed certificates**: Generate certificates for internal use
+- **Trusted issuer management**: Control which CAs you trust
+- **Certificate verification**: Validate certificates against custom policies
 
-   * Anti-downgrade by design
-   * First-class self-signed / private PKI handling
-   * Strong isolation, profiles, forensic logging, easy lab mode.
+### 💰 Wallet Integration
+- **Cryptocurrency wallets**: Connect to Web3 wallets
+- **Traditional finance**: Interface with banking systems
+- **Unified management**: Manage all wallets from one interface
 
-4. **URL-minimising browser**
-   Humans mostly use *names* and *spaces*, machines use URIs and DNS. HexaGate exposes the first, manages the second.
+## Installation
 
-5. **Money-native browser**
-   Crypto + DeFi + “traditional” accounts via integrated wallet layer, standard payment intents, strong consent.
+```bash
+npm install hexagate
+```
 
----
+## Quick Start
 
-## 2. Core concepts
+```typescript
+import { HexaGate } from 'hexagate';
 
-Instead of “tabs and URLs”, HexaGate thinks in these primitives:
+// Create a new HexaGate instance
+const hexagate = new HexaGate();
 
-1. **Route Profiles**
+// Initialize with desired networks
+await hexagate.initialize(['clearnet', 'tor', 'i2p']);
 
-   * Encapsulate *where and how* traffic goes:
+// Register a human-readable handle
+hexagate.handles.registerHandle('my-site', 'clearnet', 'https://example.com', {
+  description: 'My favorite website',
+  tags: ['personal', 'main']
+});
 
-     * `clearnet-strict` (TCP/QUIC via DoH/DoT, no plaintext)
-     * `tor-anon` (.onion + clearnet via Tor)
-     * `i2p`, `gnunet`, `lokinet`, etc.
-     * `corp-vpn`, `research-lab`, `dvpn-X`
-   * Each route profile defines:
+// Navigate using the handle
+const response = await hexagate.navigate({ handle: 'my-site' });
+console.log(response.resolvedAddress); // https://example.com
 
-     * Transport stack (TCP/UDP/QUIC, proxies, SOCKS, etc.)
-     * DNS/resolution strategy (system, DoH/DoT, local override, custom)
-     * TLS policy (versions, ciphers, cert policies)
-     * Fingerprint/OPSEC posture (user agent, JS features, font exposure, etc.)
+// Create an encrypted space for secure browsing
+const space = hexagate.spaces.createSpace('Research', 'maximum');
+hexagate.spaces.addTask(space.id, 'OSINT Research', 'tor');
 
-2. **Spaces**
+// Set security level
+hexagate.setSecurityLevel('elevated');
 
-   * A **Space** is a contextual container:
-     “All my banking stuff”, “Threat hunting”, “Tor research”, “Dev work”, etc.
-   * Each space has:
+// Shutdown when done
+await hexagate.shutdown();
+```
 
-     * One or more route profiles
-     * Isolation rules (cookies, storage, identity, agents, permissions)
-     * Security posture (paranoid / strict / relaxed)
+## API Reference
 
-3. **Resource Handles**
+### HexaGate
 
-   * Human-facing identifiers like:
+The main facade class providing access to all subsystems.
 
-     * `@kingston.intranet/portal`
-     * `@personal/bank`
-     * `@recon/target-foo`
-   * These resolve via:
+```typescript
+const hexagate = new HexaGate();
+await hexagate.initialize(['clearnet', 'tor']);
+```
 
-     * Local “Address Book”
-     * Custom resolvers (Cloudflare-style, internal DNS, a distributed registrar)
-   * Under the hood they map to URIs (`https://foo.bar`, `http://abc.onion`, `gnunet://xyz`).
+#### Properties
+- `router` - Unified routing manager
+- `handles` - Handle resolver
+- `spaces` - Space manager
+- `agents` - Agent registry
+- `tasks` - Task manager
+- `policies` - Security policy manager
+- `pki` - PKI manager
+- `security` - Security level manager
+- `wallets` - Wallet manager
 
-4. **Agent Workspaces**
+### Routing
 
-   * Each Space has one or more **Agents** connected via Hexstrike MCP:
+```typescript
+import { UnifiedRouter, TorHandler, I2PHandler } from 'hexagate';
 
-     * `Navigator`: browsing + filling + summarising
-     * `Analyst`: scraping + correlating + storing data
-     * `Ops`: running workflows/tools (nmap, whois, OSINT APIs, etc.)
-   * Agents:
+const router = new UnifiedRouter();
+router.registerHandler(new TorHandler());
+router.registerHandler(new I2PHandler());
 
-     * Have their own permissions and tools
-     * Can persist context *per space*, not “per chat session”
-     * Operate through a strict “Agent Bridge” API, not arbitrary system access.
+const response = await router.route({
+  url: 'https://example.com',
+  preferredNetwork: 'tor'
+});
+```
 
-5. **Wallets**
+### Handles
 
-   * Crypto + DeFi + traditional accounts abstracted as **Wallets**:
+```typescript
+import { HandleResolver, HandleParser } from 'hexagate';
 
-     * `wallet:personal-eth`
-     * `wallet:btc-cold`
-     * `wallet:bank-lloyds`
-   * Browser exposes a **Payment Intent API** to sites and agents:
+const resolver = new HandleResolver();
 
-     * “Pay 0.05 ETH to X”
-     * “Approve DEX swap of token A → token B”
-     * “Initiate bank transfer of £Y”
+// Register a handle
+resolver.registerHandle('example', 'tor', 'http://example.onion', {
+  description: 'Example hidden service',
+  tags: ['example', 'demo']
+});
 
----
+// Resolve a handle
+const handle = resolver.resolve('example');
 
-## 3. High-level architecture
+// Parse handle with network prefix
+const parsed = HandleParser.parse('tor:my-service');
+// { name: 'my-service', networkType: 'tor' }
+```
 
-### 3.1 Components
+### Spaces
 
-* **Shell / UI Layer**
+```typescript
+import { SpaceManager, SpaceEncryption } from 'hexagate';
+
+const manager = new SpaceManager();
+
+// Create an encrypted space
+const space = manager.createSpace('Work', 'elevated');
 
-  * Written in something like Rust + Tauri / Electron / native toolkit.
-  * Manages windows, spaces, route profiles, settings, logs.
+// Add tasks to the space
+manager.addTask(space.id, 'Research', 'clearnet');
 
-* **Rendering Engine**
+// Encrypt data
+const encrypted = SpaceEncryption.encrypt('sensitive data', space.encryptionKey);
+
+// Decrypt data
+const decrypted = SpaceEncryption.decrypt(encrypted, space.encryptionKey);
+```
+
+### Agents (Hexstrike MCP)
 
-  * Either:
+```typescript
+import { AgentRegistry, AgentPermissionBuilder, AgentTaskManager } from 'hexagate';
 
-    * Use a hardened Chromium/Gecko/WebKit fork, **or**
-    * Wrap a system engine via CEF/WebView with extra sandboxing.
-  * Isolated at process level from the Shell and Agent subsystems.
+const registry = new AgentRegistry();
+const taskManager = new AgentTaskManager();
 
-* **Network Stack**
+// Create an agent with permissions
+const permissions = new AgentPermissionBuilder()
+  .allowNetwork('clearnet', 'tor')
+  .allowCommands()
+  .build();
 
-  * A standalone daemon or library:
+const agent = registry.registerAgent(
+  'automation',
+  'ResearchBot',
+  'Automated research assistant',
+  permissions
+);
 
-    * Exposes an internal API: `open_url(route_profile_id, uri, options) -> stream`
-    * Has pluggable transports (clearnet/Tor/I2P/etc.).
-    * Handles DNS, TLS, ALPN, HTTP/2/3, etc.
+// Create a task for the agent
+const task = taskManager.createTask(agent.id, 'automation', {
+  query: 'search terms'
+});
+```
 
-* **Security & Policy Engine**
+### Security
 
-  * Central authority for:
+```typescript
+import { PolicyManager, PKIManager, SecurityLevelManager } from 'hexagate';
 
-    * TLS policies
-    * Mixed content
-    * Permission prompts (camera, mic, clipboard, FS, wallet, agents)
-    * Cert pinning and TOFU
-    * Network downgrade detection.
+const policyManager = new PolicyManager();
 
-* **Agent Bridge & MCP Client**
+// Evaluate a connection
+const result = policyManager.evaluateConnection({
+  url: 'https://example.com',
+  tlsVersion: '1.3',
+  cipherSuite: 'TLS_AES_256_GCM_SHA384'
+});
 
-  * Integrated MCP client for hexstrike and other MCP servers.
-  * Agent Bridge exposes:
+if (!result.allowed) {
+  console.log('Connection blocked:', result.violations);
+}
 
-    * DOM view APIs (structured page data, not raw JS injection)
-    * Form and navigation APIs
-    * Limited file I/O (downloads, uploads, session storage)
-    * Network APIs (via the same route profile policies).
+// Generate a self-signed certificate
+const pkiManager = new PKIManager();
+const cert = pkiManager.generateSelfSignedCertificate('CN=internal.local');
+```
 
-* **Data Storage Layer**
+### Wallets
 
-  * Encrypted on-disk store:
+```typescript
+import { WalletManager, MockCryptoWallet } from 'hexagate';
 
-    * Spaces, route profiles, agent memories, logs, address book, wallets.
-  * Per-space encryption keys, with a master key unlocked at login.
+const walletManager = new WalletManager();
 
-* **Wallet & Payment Layer**
+// Create and connect a wallet
+const wallet = walletManager.createWallet('crypto', 'My ETH Wallet');
+walletManager.connectWallet(wallet.id, '0x123...', 'publicKey');
 
-  * Key management (software and hardware wallets)
-  * On-device secure enclave integration where available
-  * Payment intent handling and signing.
+// Update balance
+walletManager.updateBalance(wallet.id, {
+  currency: 'ETH',
+  amount: '1.5',
+  lastUpdated: new Date()
+});
+```
 
----
+## Architecture
 
-## 4. Networking & resolution spec
+```
+hexagate/
+├── src/
+│   ├── index.ts          # Main entry point and HexaGate facade
+│   ├── types/            # TypeScript type definitions
+│   ├── routing/          # Unified routing framework
+│   ├── handles/          # Human-readable handle system
+│   ├── spaces/           # Encrypted spaces
+│   ├── hexstrike/        # Agent framework (MCP)
+│   ├── security/         # Security policies and PKI
+│   └── wallets/          # Wallet integration
+├── tests/                # Test suites
+├── dist/                 # Compiled output
+└── package.json
+```
 
-### 4.1 Transport abstraction
+## Security Considerations
 
-Define a `TransportAdapter` interface:
+HexaGate implements multiple layers of security:
 
-* `connect(host, port, options) -> stream`
-* `dns_resolve(name, rrtype) -> records`
-* Optional: `supports(uri_scheme)` and `route_metadata()`.
+1. **Transport Security**: Enforces TLS 1.2+ with strong cipher suites
+2. **Anti-Downgrade**: Prevents protocol downgrade attacks
+3. **Certificate Validation**: Verifies certificate chains and expiration
+4. **Encryption**: Uses AES-256-GCM for space data encryption
+5. **Key Derivation**: PBKDF2 with SHA-512 for password-based keys
+6. **Network Isolation**: Separates traffic by network type
 
-Adapters:
+## Development
 
-* `ClearnetAdapter`
+```bash
+# Install dependencies
+npm install
 
-  * TCP/QUIC via system or custom stack
-  * DoH / DoT resolvers (Cloudflare, custom, internal)
-  * Enforces TLS min version, cipher suites, HSTS/H2/H3 only policies.
+# Build
+npm run build
 
-* `TorAdapter`
+# Run tests
+npm test
 
-  * Connects via a Tor daemon / embedded Tor.
-  * `.onion` resolution is direct; normal DNS is sent through Tor or blocked according to profile.
-  * Stream isolation per tab/space.
+# Watch mode for tests
+npm run test:watch
 
-* `I2PAdapter`, `GNUnetAdapter`, `LokinetAdapter`, `FreenetAdapter`, `ZeroNetAdapter`, etc.
+# Type check
+npm run lint
+```
 
-  * Each adapter:
+## License
 
-    * Implements its own name resolution.
-    * Maps its network’s primitives into a “HTTP-like” stream if needed or uses its own protocol handlers.
+ISC
 
-* `dVPNAdapter`
+## Contributing
 
-  * General interface to dVPN clients (e.g., Sentinel, Mysterium style)
-  * Exposes an endpoint as a regular outbound.
+Contributions are welcome! Please read our contributing guidelines before submitting pull requests.
 
-Each **Route Profile** chooses:
-
-* Primary `TransportAdapter`
-* Optional fallback / chained adapters (e.g. Clearnet over Tor, dVPN inside Tor for weirdos).
-
-### 4.2 Resolution & “URL” simplification
-
-User types:
-
-* `bank` or `@bank` or `@personal/bank`
-
-Resolution steps:
-
-1. **Local Address Book**
-
-   * Check user’s local mapping:
-
-     * `@bank` -> `https://secure.hsbc.co.uk` via `clearnet-strict`
-2. **Configured Naming Service**
-
-   * Could be:
-
-     * Internal DNS
-     * A Cloudflare-style resolver with custom records
-     * ENS/UD-like naming for crypto/web3
-3. **Fallback to “classic” URL parsing**
-
-   * If user actually enters `https://example.com`, treat it as canonical URI.
-
-This gives you human-friendly handles but still supports raw URLs for power use.
-
----
-
-## 5. Security & trust model
-
-### 5.1 TLS & downgrade protection
-
-* **Global policy**:
-
-  * Min TLS version (e.g. 1.2) per Route Profile.
-  * Disallow non-TLS for “secure” spaces.
-  * Strict HSTS-style rules, but configurable:
-
-* **Downgrade prevention**:
-
-  * If a host is known to support TLS1.3/HTTP3, refuse 1.0/1.1/HTTP1 downgrade.
-  * Cache “capabilities” per host (protocols allowed).
-
-* **Cipher & feature policy**:
-
-  * Per-space profile for:
-
-    * Ciphers allowed
-    * Compression disabled (CRIME/BREACH style mitigations)
-    * ALPN selection (prefer H3/H2).
-
-### 5.2 Self-signed & private PKI
-
-Self-certs are a feature, not a crime:
-
-* **Trust modes** for a certificate:
-
-  * One-shot exception (session only).
-  * Persistent pin for:
-
-    * Hostname
-    * IP
-    * Space or Route Profile level.
-
-* **TOFU (Trust On First Use)**:
-
-  * For internal/self-hosted services, first visit prompts:
-
-    * Show cert fingerprint
-    * Option to pin cert or CA.
-  * On mismatch:
-
-    * Hard block with loud warning, logs entry for audit.
-
-* **Private PKI support**:
-
-  * Import internal CA or certificate bundles per Space.
-  * Mark these as “internal-only” so they never get used for public internet.
-
-### 5.3 Isolation & sandboxing
-
-* **Per-Space isolation**:
-
-  * Cookies, localStorage, IndexedDB, service workers, cache all isolated.
-  * Optional ephemeral spaces with automatic wipe on close.
-
-* **Per-Site process isolation**:
-
-  * Each origin in its own renderer process.
-  * Route Profile and Space attached to those processes.
-
-* **Downloads & file access**:
-
-  * Download sandbox directories per Space.
-  * Optional “research mode” where file interaction is highly constrained.
-
-### 5.4 Privacy & fingerprinting
-
-* **Browser fingerprint buckets**:
-
-  * `low-fingerprint` profile:
-
-    * Unified user-agent string
-    * Font and canvas anti-fingerprinting
-    * Randomised or blocked high-entropy APIs.
-  * `normal` profile:
-
-    * Slightly less strict for sites that break easily.
-  * `lab` profile:
-
-    * Fully transparent and debuggable, for testing.
-
-* **Network privacy**:
-
-  * First-class support for Tor / I2P etc.
-  * Traffic padding, optional timing jitter for high-paranoia spaces.
-
----
-
-## 6. Agent system (Hexstrike MCP integration)
-
-### 6.1 Agent types & scopes
-
-* **Per-Space agents**:
-
-  * Persist memory and tools just for that Space.
-  * Example:
-
-    * `ReconAgent` for OSINT + network recon
-    * `ResearchAgent` for academic browsing
-    * `AutofillAgent` for forms/social media.
-
-* **Global agents**:
-
-  * System-wide tasks:
-
-    * Bookmarks organisation
-    * History analysis
-    * Threat detection across Spaces (optional; careful with privacy).
-
-### 6.2 Agent Bridge API
-
-Agents never poke the DOM directly; they call an API like:
-
-* `get_page_structure()`
-  Returns:
-
-  * Main headings
-  * Links
-  * Forms and fields
-  * Visible text segments.
-
-* `click_element(selector_or_stable_id)`
-
-* `fill_form(form_id, field_values)`
-
-* `navigate_to(handle_or_uri)`
-
-* `download_resource(uri)` with Space-controlled permissions.
-
-* `run_tool(tool_id, params)` mapped to hexstrike MCP tools.
-
-Permissions:
-
-* Each agent has a capability descriptor:
-
-  * Can/can’t navigate
-  * Can/can’t click
-  * Can/can’t read full content vs summaries
-  * Can/can’t access wallet/payment APIs.
-
-### 6.3 MCP integration
-
-* HexaGate includes:
-
-  * MCP client configured to talk to your Hexstrike server.
-  * A schema for browser-specific tools:
-
-    * `browser.read_page`
-    * `browser.act_on_page`
-    * `browser.search_history`
-    * `browser.open_space`
-  * Agents can chain into external tools:
-
-    * OSINT, scanners, threat intel feeds, etc.
-
-* Agent context persistence:
-
-  * Stored in encrypted DB, scoped by Space and Agent.
-  * You can “snapshot” an Agent state for forensic replay.
-
----
-
-## 7. Payments & finance layer
-
-### 7.1 Wallet module
-
-* **Key management**:
-
-  * Support:
-
-    * Software wallets (encrypted keystore)
-    * Hardware wallets (Ledger, Trezor, etc.)
-    * OS keychains / secure enclaves where available.
-
-* **Supported backends**:
-
-  * Crypto:
-
-    * EVM chains (ETH, L2s)
-    * BTC (via descriptors)
-    * Other chains via modular connectors.
-  * Traditional:
-
-    * OpenBanking / PSD2 connectors
-    * Card payment tokenisation (via third-party APIs, but with strong sandboxing).
-
-### 7.2 Payment Intent API
-
-Websites and agents use a standard API:
-
-* `requestPayment({
-    fromWallet: "personal-eth",
-    to: "0xabc...",
-    amount: "0.01",
-    asset: "ETH",
-    memo: "Pay for X"
-  })`
-
-User sees:
-
-* Clear prompt:
-
-  * Who requested it
-  * Network and asset
-  * Route profile security level
-* Must explicitly approve, possibly with hardware confirmation.
-
-DeFi flows:
-
-* `requestDeFiAction({ protocol, action, details })`
-
-  * Swap, stake, LP, etc.
-  * Browser decodes and presents human-readable summary and risk.
-
-Logs:
-
-* All signed transactions logged with:
-
-  * Space
-  * Route profile
-  * Referring site
-  * Agent (if any) that initiated.
-
----
-
-## 8. UI & UX
-
-### 8.1 Main concepts in UI
-
-* **Space bar** (left side):
-
-  * List of Spaces: Banking, Research, Tor Lab, Dev, etc.
-  * Each has icons for:
-
-    * Route profile(s)
-    * Security level indicator
-    * Agent status.
-
-* **Top bar**:
-
-  * Input field that accepts:
-
-    * Resource Handles (`@recon/target-foo`)
-    * Search queries
-    * Raw URLs if you’re in that mood.
-  * Route selector pill (e.g. “Clearnet-Strict”, “Tor-Anon”).
-
-* **Agent panel**:
-
-  * Collapsible drawer per tab:
-
-    * Chat with agents
-    * See actions taken
-    * Approve/deny suggested actions.
-
-* **Wallet panel**:
-
-  * Shows balances & recent actions per wallet.
-  * One-click “disconnect from current site” like modern wallet extensions, but at browser core level.
-
-### 8.2 Special modes for security work
-
-* **Lab Mode Space**
-
-  * Traffic recording (PCAP/save replays).
-  * Forced isolation (no cross-space cookies, DNS, or caches).
-  * Easy “reproduce this flow” with an agent for automation.
-
-* **Evidence Mode**
-
-  * Hashes downloads
-  * Recorded browsing path and timestamps
-  * Exportable as a case bundle (with redactions).
-
----
-
-## 9. Admin & policy features
-
-For your cyber-security mindset and multi-user environments:
-
-* **Policy packs**:
-
-  * JSON / YAML configs:
-
-    * Allowed Route Profiles
-    * Cert policies
-    * Network restrictions
-    * Allowed Agents/tools.
-  * Good for lab setups, classrooms, enterprises.
-
-* **Audit logging**:
-
-  * Per Space and per user:
-
-    * Connections made (domains, IPs, route profiles)
-    * Security events (downgrade blocked, bad cert, mixed-content blocked)
-    * Agent actions affecting navigation or wallet operations.
-
-* **Profiles & multi-user**:
-
-  * Multiple user profiles (like Chrome) but with:
-
-    * Strong OS-level separation where possible
-    * Distinct master passwords / keyrings.
-
----
-
-## 10. Example flows
-
-### 10.1 Visiting a Tor and clearnet site in same UI
-
-1. You create a **Space**: `Tor Research`.
-2. Route profile: `tor-anon`:
-
-   * Transport: `TorAdapter`
-   * DNS through Tor, network fingerprint hardened.
-3. You open `hidden-service` (handle) → resolves to `abc123.onion`.
-4. New tab spins up renderer process bound to `tor-anon`.
-5. Agent `ReconAgent` summarises the page for you, logs interesting links.
-
-Parallel:
-
-1. Another Space: `Banking`.
-2. Route profile: `clearnet-strict`:
-
-   * Clearnet only, no Tor, no alt-nets.
-   * Private PKI disabled, strict CA list.
-3. You open `@bank` → `https://secure.bank.com`.
-4. Wallet API locked to specific whitelisted sites.
-
-They never mix.
-
-### 10.2 Using agents for “infinite context” browsing
-
-1. In `Research` Space, you open 20 tabs on a topic.
-2. `ResearchAgent`:
-
-   * Reads all 20 via Agent Bridge
-   * Stores extracted knowledge graph in the Space storage.
-3. Later, you open new pages; agent cross-references older material:
-
-   * Finds contradictions
-   * Flags duplicated content
-   * Suggests further sources.
-
-Context isn’t “this chat session” but the **Space’s entire history**, subject to storage limits you control.
-
----
-
-## 11. Implementation notes (for later)
-
-When you actually build:
-
-* Language for core: Rust (for network + security correctness) is a strong candidate.
-* Render engine: start with wrapping Chromium via CEF, add your hardened network and security layers underneath, then later decide if you want a custom engine.
-* Tor/I2P/GNUnet: initial implementation via existing daemons/clients (SOCKS, SAM, etc.), then consider embedded options.
-* Hexstrike MCP: treat as a system service that HexaGate connects to via a local endpoint, with Spaces mapping to MCP “projects” or “tenants”.
-
----
