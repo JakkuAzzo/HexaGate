@@ -1,17 +1,5 @@
 # HexaGate
 A better web browser
-Let’s build a ridiculous, overpowered, security-nerd browser then.
-
-I’ll give it:
-
-* A name
-* Core design goals
-* Core concepts (how it *thinks* about browsing)
-* A full functional spec: networking, security, agents, alt-nets, payments, UI, admin/for-research stuff
-
-You can treat this as the v1 product spec.
-
----
 
 ## Name
 
